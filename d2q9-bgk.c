@@ -240,6 +240,7 @@ float propagate_rebound_collision(const t_param params, t_speed* restrict cells,
   float tot_u     = 0.f; /* accumulated magnitudes of velocity for each cell */
 
   /* loop over the cells in the grid */
+  #pragma omp parallel for reduction(+:tot_cells, tot_u)
   for (int jj = 0; jj < params.ny; jj++)
   {
     for (int ii = 0; ii < params.nx; ii++)
@@ -425,8 +426,8 @@ float av_velocity(const t_param params, t_speed* restrict cells, int* restrict o
 }
 
 int initialise(const char* paramfile, const char* obstaclefile,
-               t_param* params, t_speed** cells_ptr, t_speed** tmp_cells_ptr,
-               int** obstacles_ptr, float** av_vels_ptr)
+               t_param* restrict params, t_speed** restrict cells_ptr, t_speed** restrict tmp_cells_ptr,
+               int** restrict obstacles_ptr, float** restrict av_vels_ptr)
 {
   char   message[1024];  /* message buffer */
   FILE*   fp;            /* file pointer */
@@ -495,17 +496,17 @@ int initialise(const char* paramfile, const char* obstaclefile,
   */
 
   /* main grid */
-  *cells_ptr = (t_speed*)malloc(sizeof(t_speed) * (params->ny * params->nx));
+  *cells_ptr = (t_speed*)_mm_malloc(sizeof(t_speed) * (params->ny * params->nx), 64);
 
   if (*cells_ptr == NULL) die("cannot allocate memory for cells", __LINE__, __FILE__);
 
   /* 'helper' grid, used as scratch space */
-  *tmp_cells_ptr = (t_speed*)malloc(sizeof(t_speed) * (params->ny * params->nx));
+  *tmp_cells_ptr = (t_speed*)_mm_malloc(sizeof(t_speed) * (params->ny * params->nx), 64);
 
   if (*tmp_cells_ptr == NULL) die("cannot allocate memory for tmp_cells", __LINE__, __FILE__);
 
   /* the map of obstacles */
-  *obstacles_ptr = malloc(sizeof(int) * (params->ny * params->nx));
+  *obstacles_ptr = _mm_malloc(sizeof(int) * (params->ny * params->nx), 64);
 
   if (*obstacles_ptr == NULL) die("cannot allocate column memory for obstacles", __LINE__, __FILE__);
 
@@ -574,7 +575,7 @@ int initialise(const char* paramfile, const char* obstaclefile,
   ** allocate space to hold a record of the avarage velocities computed
   ** at each timestep
   */
-  *av_vels_ptr = (float*)malloc(sizeof(float) * params->maxIters);
+  *av_vels_ptr = (float*)_mm_malloc(sizeof(float) * params->maxIters, 64);
 
   return EXIT_SUCCESS;
 }
